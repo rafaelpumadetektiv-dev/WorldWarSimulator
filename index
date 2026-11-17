@@ -1,0 +1,338 @@
+
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>World War - Global Conquest</title>
+<style>
+* { box-sizing: border-box; }
+body {
+  margin: 0;
+  background: #101722;
+  color: white;
+  font-family: Arial, sans-serif;
+}
+header {
+  background: #192638;
+  padding: 20px;
+  text-align: center;
+  border-bottom: 2px solid #344861;
+}
+h1 { margin: 0; color: #e5b84c; }
+main {
+  max-width: 1100px;
+  margin: auto;
+  padding: 20px;
+}
+.stats {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 10px;
+}
+.stat, .panel {
+  background: #1c2a3b;
+  padding: 15px;
+  border-radius: 10px;
+}
+.stat { text-align: center; }
+.stat strong {
+  display: block;
+  color: #e5b84c;
+  font-size: 22px;
+  margin-top: 8px;
+}
+h2 { color: #e5b84c; }
+.countries {
+  display: grid;
+  grid-template-columns: repeat(auto-fit,minmax(145px,1fr));
+  gap: 12px;
+}
+.country {
+  background: #263950;
+  padding: 15px;
+  border-radius: 9px;
+  border: 2px solid transparent;
+  cursor: pointer;
+  text-align: center;
+}
+.country.selected { border-color: #e5b84c; }
+.country:hover { background: #344d6b; }
+.country small { color: #b7c6d8; }
+button {
+  background: #d6a83e;
+  color: #17202b;
+  border: none;
+  padding: 12px 16px;
+  border-radius: 7px;
+  cursor: pointer;
+  font-weight: bold;
+  margin: 5px;
+}
+button:hover { background: #f0c85e; }
+button:disabled {
+  opacity: .35;
+  cursor: not-allowed;
+}
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+}
+#log {
+  height: 180px;
+  overflow-y: auto;
+  background: #101722;
+  padding: 12px;
+  border-radius: 8px;
+  font-size: 14px;
+}
+.log-entry {
+  padding: 5px;
+  border-bottom: 1px solid #344861;
+}
+footer {
+  text-align: center;
+  color: #8293a8;
+  padding: 25px;
+}
+@media(max-width:600px) {
+  .stats { grid-template-columns: repeat(2,1fr); }
+}
+</style>
+</head>
+<body>
+
+<header>
+  <h1>🌍 WORLD WAR</h1>
+  <p>Global Conquest – Erobere die Welt!</p>
+</header>
+
+<main>
+
+<h2>📊 Dein Land</h2>
+<div class="stats">
+  <div class="stat">💰 Geld<strong id="money">500</strong></div>
+  <div class="stat">🛢️ Öl<strong id="oil">100</strong></div>
+  <div class="stat">🔩 Stahl<strong id="steel">100</strong></div>
+  <div class="stat">⚔️ Militär<strong id="army">100</strong></div>
+</div>
+
+<div class="panel" style="margin-top:15px">
+  <h2>🏳️ Dein Imperium</h2>
+  <p>Land: <strong id="owned">Deutschland</strong></p>
+  <p>Kontrollierte Länder: <strong id="count">1 / 10</strong></p>
+  <p>Runde: <strong id="turn">1</strong></p>
+  <button onclick="nextTurn()">⏭️ Nächste Runde</button>
+</div>
+
+<h2>🗺️ Länder der Welt</h2>
+<p>Wähle ein Land, um Informationen zu sehen.</p>
+<div class="countries" id="countries"></div>
+
+<div class="panel" style="margin-top:20px">
+  <h2>🎯 Länderinformationen</h2>
+  <div id="details">Wähle ein Land aus.</div>
+  <div class="actions">
+    <button id="attack" onclick="attack()">⚔️ Angreifen</button>
+  </div>
+</div>
+
+<div class="panel" style="margin-top:20px">
+  <h2>🔬 Forschung & Upgrades</h2>
+  <div class="actions">
+    <button onclick="upgrade('army')">⚔️ Militär verbessern (150$)</button>
+    <button onclick="upgrade('defense')">🛡️ Verteidigung verbessern (120$)</button>
+    <button onclick="upgrade('economy')">💰 Wirtschaft verbessern (100$)</button>
+  </div>
+  <p id="levels">Militär: 1 | Verteidigung: 1 | Wirtschaft: 1</p>
+</div>
+
+<div class="panel" style="margin-top:20px">
+  <h2>📜 Ereignisse</h2>
+  <div id="log"></div>
+</div>
+
+</main>
+
+<footer>WORLD WAR – Global Conquest | Version 1.0</footer>
+
+<script>
+let game = {
+  money: 500,
+  oil: 100,
+  steel: 100,
+  army: 100,
+  turn: 1,
+  selected: null,
+  upgrades: {
+    army: 1,
+    defense: 1,
+    economy: 1
+  }
+};
+
+let countries = [
+  {name:"Deutschland", power:0, owner:true},
+  {name:"Frankreich", power:80},
+  {name:"Italien", power:70},
+  {name:"Spanien", power:55},
+  {name:"Polen", power:90},
+  {name:"Schweden", power:45},
+  {name:"Norwegen", power:40},
+  {name:"Japan", power:130},
+  {name:"Brasilien", power:100},
+  {name:"Kanada", power:110}
+];
+
+function log(message) {
+  const box = document.getElementById("log");
+  box.innerHTML = `<div class="log-entry">${message}</div>` + box.innerHTML;
+}
+
+function render() {
+  document.getElementById("money").textContent = game.money;
+  document.getElementById("oil").textContent = game.oil;
+  document.getElementById("steel").textContent = game.steel;
+  document.getElementById("army").textContent = game.army;
+
+  let owned = countries.filter(c => c.owner).length;
+  document.getElementById("count").textContent =
+    owned + " / " + countries.length;
+
+  document.getElementById("turn").textContent = game.turn;
+
+  document.getElementById("levels").textContent =
+    `Militär: ${game.upgrades.army} | ` +
+    `Verteidigung: ${game.upgrades.defense} | ` +
+    `Wirtschaft: ${game.upgrades.economy}`;
+
+  document.getElementById("countries").innerHTML =
+    countries.map((c,i) => `
+      <div class="country ${game.selected === i ? 'selected' : ''}"
+           onclick="selectCountry(${i})">
+        <h3>${c.owner ? "🏳️" : "🌐"} ${c.name}</h3>
+        <small>${c.owner ? "Dein Land" : "Stärke: " + c.power}</small>
+      </div>
+    `).join("");
+
+  if (game.selected !== null) {
+    const c = countries[game.selected];
+    document.getElementById("details").innerHTML = `
+      <h3>${c.name}</h3>
+      <p>${c.owner ? "Dieses Land gehört dir!" :
+        "Militärische Stärke: " + c.power}</p>
+      <p>Status: ${c.owner ? "Verbündet / Kontrolliert" : "Unabhängig"}</p>
+    `;
+    document.getElementById("attack").disabled = c.owner;
+  }
+}
+
+function selectCountry(index) {
+  game.selected = index;
+  render();
+}
+
+function nextTurn() {
+  game.turn++;
+
+  let owned = countries.filter(c => c.owner).length;
+  game.money += owned * 80 * game.upgrades.economy;
+  game.oil += owned * 15;
+  game.steel += owned * 20;
+
+  // Ressourcen für das Militär
+  game.army += 5 * game.upgrades.army;
+
+  log("⏭️ Runde " + game.turn +
+      ": Deine Länder produzieren neue Ressourcen!");
+
+  render();
+}
+
+function upgrade(type) {
+  const costs = {
+    army: 150,
+    defense: 120,
+    economy: 100
+  };
+
+  const cost = costs[type];
+
+  if (game.money < cost) {
+    log("❌ Nicht genug Geld für dieses Upgrade!");
+    return;
+  }
+
+  game.money -= cost;
+  game.upgrades[type]++;
+
+  if (type === "army") {
+    game.army += 30;
+  }
+
+  log("🔬 Upgrade erfolgreich: " + type.toUpperCase());
+  render();
+}
+
+function attack() {
+  if (game.selected === null) return;
+
+  const target = countries[game.selected];
+
+  if (target.owner) {
+    log("❌ Dieses Land gehört bereits dir!");
+    return;
+  }
+
+  if (game.army < 30 || game.oil < 20 || game.steel < 15) {
+    log("❌ Du brauchst mindestens 30 Militär, 20 Öl und 15 Stahl!");
+    return;
+  }
+
+  game.army -= 30;
+  game.oil -= 20;
+  game.steel -= 15;
+
+  const attackPower =
+    game.army * 0.15 +
+    game.upgrades.army * 25 +
+    Math.random() * 60;
+
+  const defensePower =
+    target.power +
+    game.upgrades.defense * 10;
+
+  if (attackPower > defensePower) {
+    target.owner = true;
+    game.money += 150;
+
+    log("🏆 Sieg! Du hast " + target.name +
+        " erobert! +150 Geld");
+  } else {
+    log("❌ " + target.name +
+        " konnte verteidigt werden. Du hast die Runde verloren.");
+  }
+
+  checkWin();
+  render();
+}
+
+function checkWin() {
+  if (countries.every(c => c.owner)) {
+    document.getElementById("details").innerHTML =
+      "<h2>🏆 DU HAST GEWONNEN!</h2>" +
+      "Du kontrollierst die gesamte Welt!";
+    log("🏆 GLÜCKWUNSCH! Du hast die ganze Welt erobert!");
+  }
+}
+
+log("🌍 Willkommen bei World War!");
+log("📌 Du beginnst mit Deutschland.");
+log("💡 Baue deine Wirtschaft auf und verbessere dein Militär.");
+
+render();
+</script>
+
+</body>
+</html>
